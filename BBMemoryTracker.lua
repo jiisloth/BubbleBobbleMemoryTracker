@@ -204,7 +204,10 @@ function draw_to_screen()
   hurryf = emu.read(0x0491, emu.memType.cpuDebug)
   enemiesleft = emu.read(0x496, emu.memType.cpuDebug)
   enemy_anger = emu.read(0x492, emu.memType.cpuDebug)
-  
+    
+  local bg = 0x77000000
+  local transp = 0xFF000000
+  local fade = 0x88000000
   
   if draw_current_item_rng_numbers then
     rng_1 = rng_2
@@ -251,10 +254,7 @@ function draw_to_screen()
   draw_special_item_counts()
   
   count_to_special_item = (6-special_item_spawn_counter)*60 + nmi_ten_zero_six*10+nmi_ten -7
-  
-  local bg = 0x77000000
-  local transp = 0xFF000000
-  local fade = 0x88000000
+
 
   
   emu.drawString(2, 16, current_level, 0xAAAAAA, transp, 1)
