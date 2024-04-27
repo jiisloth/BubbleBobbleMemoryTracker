@@ -211,10 +211,15 @@ function draw_to_screen()
     rng_2 = rng_3
     rng_3 = emu.read(0x063, emu.memType.cpuDebug)
     
-    emu.drawString(180, 24, "RNG:" , 0xAAAAAA, transp, 1)
-    emu.drawString(202, 24, rng_3, 0xAAAAAA, transp, 1)
-    emu.drawString(220, 24, rng_2, 0x777777, transp, 1)
-    emu.drawString(238, 24, rng_1 , 0x444444, transp, 1)
+    emu.drawString(191, 24, "RNG:" , 0xAAAAAA, transp, 1)
+    emu.drawString(215, 24, string.format("%X", rng_3), 0xAAAAAA, transp, 1)
+    emu.drawString(229, 24, string.format("%X", rng_2), 0x777777, transp, 1)
+    emu.drawString(243, 24, string.format("%X", rng_1) , 0x444444, transp, 1)
+    emu.drawLine(191,32,220,32, 0xAAAAAA)
+    emu.drawLine(221,32,235,32, 0x777777)
+    emu.drawLine(236,32,246,32, 0x555555)
+    emu.drawLine(247,32,253,32, 0x444444)
+    emu.drawLine(251,34,253,32, 0x444444)
   end
   
   
