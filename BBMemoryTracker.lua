@@ -7,6 +7,8 @@ write_to_file = false
 show_next = true
 show_special_item = true
 show_item_descriptions = true
+draw_item_positions = false
+draw_current_item_rng_numbers = false
 
 menu_key = "M"
 
@@ -121,7 +123,6 @@ function read_item_counts()
 end
 
 function draw_special_item_counts()
-  emu.drawRectangle(0,0,256, 16, 0x77000000, true)
   active = 0
   for i, action in ipairs(special_item_actions) do
     -- val
@@ -154,6 +155,14 @@ function draw_centered(x,y,s,c,bg)
   emu.drawString(x + offset,y,s,c,bg)
 end
 
+function get_pad_offset(pad,s)
+  local digits = #tostring(s)
+  local offset = 0
+  if digits < pad then
+    offset = 6 * (pad-digits)
+  end
+  return offset
+end
 
 function main()
   --read_random_item_numbers()
@@ -161,68 +170,7 @@ function main()
   read_item_counts()
   
   if draw_on_screen then
-    special_item  = emu.read(tonumber("0x40B"), emu.memType.cpuDebug)
-    current_level = emu.read(tonumber("0x401"), emu.memType.cpuDebug)
-    enemiesleft = emu.read(tonumber("0x496"), emu.memType.cpuDebug)
-    
-    local current_frame = emu.getState().ppu.frameCount
-    if enemies_was > 0 and enemiesleft == 0 then
-      eol = current_frame + 510
-    end
-    enemies_was = enemiesleft
-    frames_to_eol = eol - current_frame
-    
-    draw_special_item_counts()
-    
-    local bg = 0x77000000
-    
-    emu.drawRectangle(0,16,2, 8, bg, true)
-    emu.drawString(2, 16, current_level, 0xAAAAAA, bg, 1)
-    
-    emu.drawString(80, 16, "E: " .. enemiesleft, 0xAAAAAA, bg, 1)
-    if frames_to_eol >= 0 and enemiesleft == 0 then
-      emu.drawString(112, 16, "EoL: " .. frames_to_eol, 0xAAAAAA, bg, 1)
-    end
-    local yoff = 24
-    if show_special_item then
-      if special_item > 0 then
-        emu.drawRectangle(0,yoff,2, 9, bg, true)
-        emu.drawString(2, yoff, "Special: ", 0xFFFFFF, bg, 1)
-        emu.drawString(40, yoff, special_items[special_item].item, 0xFFFFFF, bg, 1)
-        emu.drawString(40, yoff, special_items[special_item].item, special_items[special_item].color + 0x88000000, 0xFF000000, 1)
-        yoff = yoff + 9
-        if show_item_descriptions then
-          emu.drawRectangle(0,yoff,2, 9, bg, true)
-          emu.drawString(2, yoff, " " .. special_items[special_item].effect, 0xFFFFFF, bg, 1)
-          emu.drawString(2, yoff, " " .. special_items[special_item].effect, special_items[special_item].color + 0xAA000000, 0xFF000000, 1)
-          
-          yoff = yoff + 9
-        end
-          
-      end
-    end
-    if show_next then
-      emu.drawRectangle(0,yoff,2, 9, bg, true)
-      emu.drawString(2, yoff, "Next:", 0xFFFFFF, bg, 1)
-
-      local bc = 1/256
-      if active > 0 then
-        emu.drawString(25, yoff, " (" .. special_item_actions[active].action .. ")", 0xFFFFFF, bg, 1)
-        emu.drawString(29, yoff, " " .. special_item_actions[active].action, special_item_actions[active].color + 0x88000000, 0xFF000000, 1)
-        local rewards = special_item_actions[active].reward
-        for i, reward in ipairs(rewards) do
-          emu.drawRectangle(0,yoff + i*9,2, 9, bg, true)
-          emu.drawString(2, yoff + i*9, " " .. string.format("%.1f", (reward.chance-bc) * 100) .. "% ", 0xFFFFFF, bg, 1)
-          emu.drawString(41, yoff + i*9, special_items[reward.item].item, 0xFFFFFF, bg, 1)
-          emu.drawString(41, yoff + i*9, special_items[reward.item].item, special_items[reward.item].color + 0x88000000, 0xFF000000, 1)
-        end
-        yoff = (yoff + #rewards * 9)
-      end
-      yoff = yoff + 9
-      emu.drawRectangle(0,yoff,2, 8, bg, true)
-      emu.drawString(2, yoff, " " .. string.format("%.1f", (bc) * 100) .. "% " .. special_items[26].item, 0xFFFFFF, bg, 1)
-      emu.drawString(35, yoff, special_items[26].item, special_items[26].color + 0x88000000, 0xFF000000, 1)
-    end
+    draw_to_screen()
   end
   
   if menu.visible then
@@ -235,7 +183,153 @@ function main()
     write_to_files()
   end
 end
+
+rng_1 = 0
+rng_2 = 0
+rng_3 = 0
  
+function draw_to_screen()
+  special_item  = emu.read(0x40B, emu.memType.cpuDebug)
+  special_item_status  = emu.read(0xC7, emu.memType.cpuDebug)
+  special_item_spawn_counter  = emu.read(0x45E, emu.memType.cpuDebug)
+  special_item_pos  = emu.read(0x4CC, emu.memType.cpuDebug)
+  point_item_status  = emu.read(0xC4, emu.memType.cpuDebug)
+  point_item_pos  = emu.read(0x4CD, emu.memType.cpuDebug)
+  nmi_ten = emu.read(0x27, emu.memType.cpuDebug)
+  nmi_ten_zero_six  = emu.read(0x2D, emu.memType.cpuDebug)
+  current_level = emu.read(0x401, emu.memType.cpuDebug)
+  letterque = emu.read(0x0405, emu.memType.cpuDebug)
+  sethurry = emu.read(0x040E, emu.memType.cpuDebug)
+  hurry = emu.read(0x040D, emu.memType.cpuDebug)
+  hurryf = emu.read(0x0491, emu.memType.cpuDebug)
+  enemiesleft = emu.read(0x496, emu.memType.cpuDebug)
+  enemy_anger = emu.read(0x492, emu.memType.cpuDebug)
+  
+  
+  if draw_current_item_rng_numbers then
+    rng_1 = rng_2
+    rng_2 = rng_3
+    rng_3 = emu.read(0x063, emu.memType.cpuDebug)
+    
+    emu.drawString(180, 24, "RNG:" , 0xAAAAAA, transp, 1)
+    emu.drawString(202, 24, rng_3, 0xAAAAAA, transp, 1)
+    emu.drawString(220, 24, rng_2, 0x777777, transp, 1)
+    emu.drawString(238, 24, rng_1 , 0x444444, transp, 1)
+  end
+  
+  
+  
+  if hurry == sethurry then
+    draw_hurry = true
+  end
+  
+  local current_frame = emu.getState().ppu.frameCount
+  if enemies_was > 0 and enemiesleft == 0 then
+    eol = current_frame + 510
+  end
+  enemies_was = enemiesleft
+  frames_to_eol = eol - current_frame
+  
+  if level_was < current_level and frames_to_eol < 0 and enemiesleft == 0 then
+    sol = current_frame + 134
+    if current_level == 1 then
+      sol = sol -1
+    end
+  end
+  frames_to_sol = sol - current_frame
+  level_was = current_level
+  
+  
+  
+  emu.drawRectangle(0,0,256, 23, 0x77000000, true)
+  
+  draw_special_item_counts()
+  
+  count_to_special_item = (6-special_item_spawn_counter)*60 + nmi_ten_zero_six*10+nmi_ten -7
+  
+  local bg = 0x77000000
+  local transp = 0xFF000000
+  local fade = 0x88000000
+
+  
+  emu.drawString(2, 16, current_level, 0xAAAAAA, transp, 1)
+  if current_level > 0 then
+    emu.drawString(237 + get_pad_offset(3,enemy_anger), 16, enemy_anger, 0xAAAAAA, transp, 1)
+    emu.drawString(80, 16, "E: " .. enemiesleft, 0xAAAAAA, transp, 1)
+    if frames_to_eol >= 0 and enemiesleft == 0 then
+      draw_hurry = false
+      emu.drawString(106, 16, "END:", 0xAAAAAA, transp, 1)
+      emu.drawString(134 + get_pad_offset(4,frames_to_eol), 16, frames_to_eol, 0xAAAAAA, transp, 1) 
+    elseif frames_to_sol >= 0 and enemiesleft == 0 then
+      emu.drawString(106, 16, "STRT:", 0xAAAAAA, transp, 1)
+      emu.drawString(134 + get_pad_offset(4,frames_to_sol), 16, frames_to_sol, 0xAAAAAA, transp, 1) 
+    elseif special_item_status == 0 and special_item > 0 and count_to_special_item >= 0 then
+      emu.drawString(106, 16, "ITM:", 0xAAAAAA, transp, 1)
+      emu.drawString(134 + get_pad_offset(4,count_to_special_item), 16, count_to_special_item, 0xAAAAAA, transp, 1) 
+    elseif hurry >= 0 and draw_hurry then
+      emu.drawString(106, 16, "HRRY:", 0xAAAAAA, transp, 1)
+      local h = hurry*61
+      if h > 0 and hurryf == 0 then
+        h = h + 61
+      else
+        h = h + hurryf
+      end
+      emu.drawString(134 + get_pad_offset(4,h), 16, h, 0xAAAAAA, transp, 1)
+    end
+    if draw_item_positions and enemiesleft > 0 then
+      if special_item_status == 0 then
+        sposx = special_item_pos % 16
+        sposy = special_item_pos //16
+        emu.drawRectangle(sposx*16,sposy*16+1,16, 16, 0xAAFF0000)
+      end
+      if point_item_status == 0 then
+        pposx = point_item_pos % 16
+        pposy = point_item_pos //16
+        emu.drawRectangle(pposx*16,pposy*16+1,16, 16, 0xAA0000FF)
+      end
+    end
+  end
+  local yoff = 24
+  if show_special_item then
+    if special_item > 0 then
+      emu.drawRectangle(0,yoff,2, 9, bg, true)
+      emu.drawString(2, yoff, "Special: ", 0xFFFFFF, bg, 1)
+      emu.drawString(40, yoff, special_items[special_item].item, 0xFFFFFF, bg, 1)
+      emu.drawString(40, yoff, special_items[special_item].item, special_items[special_item].color + fade, transp, 1)
+      yoff = yoff + 9
+      if show_item_descriptions then
+        emu.drawRectangle(0,yoff,2, 9, bg, true)
+        emu.drawString(2, yoff, " " .. special_items[special_item].effect, 0xFFFFFF, bg, 1)
+        emu.drawString(2, yoff, " " .. special_items[special_item].effect, special_items[special_item].color + fade, transp, 1)
+        
+        yoff = yoff + 9
+      end
+        
+    end
+  end
+  if show_next then
+    emu.drawRectangle(0,yoff,2, 9, bg, true)
+    emu.drawString(2, yoff, "Next:", 0xFFFFFF, bg, 1)
+
+    local bc = 1/256
+    if active > 0 then
+      emu.drawString(25, yoff, " (" .. special_item_actions[active].action .. ")", 0xFFFFFF, bg, 1)
+      emu.drawString(29, yoff, " " .. special_item_actions[active].action, special_item_actions[active].color + fade, transp, 1)
+      local rewards = special_item_actions[active].reward
+      for i, reward in ipairs(rewards) do
+        emu.drawRectangle(0,yoff + i*9,2, 9, bg, true)
+        emu.drawString(2, yoff + i*9, " " .. string.format("%.1f", (reward.chance-bc) * 100) .. "% ", 0xFFFFFF, bg, 1)
+        emu.drawString(41, yoff + i*9, special_items[reward.item].item, 0xFFFFFF, bg, 1)
+        emu.drawString(41, yoff + i*9, special_items[reward.item].item, special_items[reward.item].color + fade, transp, 1)
+      end
+      yoff = (yoff + #rewards * 9)
+    end
+    yoff = yoff + 9
+    emu.drawRectangle(0,yoff,2, 8, bg, true)
+    emu.drawString(2, yoff, " " .. string.format("%.1f", (bc) * 100) .. "% " .. special_items[26].item, 0xFFFFFF, bg, 1)
+    emu.drawString(35, yoff, special_items[26].item, special_items[26].color + fade, transp, 1)
+  end
+end
 
 function write_to_files()
   if level ~= current_level then
@@ -324,6 +418,7 @@ menu = {visible = false, cursor = 1, items={
   {text = "Show current item", action = "toggle_var", value="show_special_item", enabled_if="draw_on_screen", enabled = true, pad=1},
   {text = "Show item description", action = "toggle_var", value="show_item_descriptions", enabled_if="show_special_item", enabled = true, pad=2},
   {text = "Show next item", action = "toggle_var", value="show_next", enabled_if="draw_on_screen", enabled = true, pad=1},
+  {text = "Show item positions", action = "toggle_var", value="draw_item_positions", enabled_if="draw_on_screen", enabled = true, pad=1},
   {text = "Write data to file", action = "toggle_var", value="write_to_file", enabled = true},
   {text = "Special Item Guide", action = "show_guide", enabled = true},
   {text = "Close menu", action = "show_menu", enabled = true},
@@ -406,7 +501,7 @@ end
 
 
 function draw_menu()
-  local menu_rect = { w = 150, h = 100} 
+  local menu_rect = { w = 150, h = 109} 
   menu_rect.x=256//2 - menu_rect.w//2
   menu_rect.y=224//2 - menu_rect.h//2
   emu.drawRectangle(menu_rect.x,menu_rect.y,menu_rect.w, menu_rect.h, 0x550000FF, true)
@@ -533,9 +628,12 @@ end
 
 active = 0
 eol = 0
+sol = 0
 enemies_was = 7
+level_was = 0
 countsstring_was = ""
 
+draw_hurry = false
 level = 0
 countsstring = ""
 
@@ -545,6 +643,4 @@ countsstring = ""
 
 emu.addEventCallback(main, emu.eventType.endFrame)
 emu.addEventCallback(input, emu.eventType.inputPolled)
-emu.displayMessage("BBMT", "Bubble Bobble Memory Tracker Active!")
-emu.displayMessage("BBMT", "Press [" .. menu_key .. "] for options.")
-emu.displayMessage("BBMT", "Do not use the tracker when doing official runs!")
+
